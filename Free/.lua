@@ -72,5 +72,5 @@ ToggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- mặc định bật khi load
+-- Startsfsfsefsdsdsv
 startAntiAFK()

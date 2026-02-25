@@ -17,7 +17,7 @@ Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
 
 local Title = Instance.new("TextLabel", Frame)
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "🌙 Lâm Vĩ Anti-AFK"
+Title.Text = "🌙 Dac Cau Anti-AFK"
 Title.TextColor3 = Color3.fromRGB(0, 255, 0)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.GothamBold

@@ -1,170 +1,318 @@
-local p = game:GetService("Players")
-local v = game:GetService("VirtualUser")
-local i = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local VU = game:GetService("VirtualUser")
+local UIS = game:GetService("UserInputService")
 
-local lp = p.LocalPlayer
-local g = lp:WaitForChild("PlayerGui")
+local me = Players.LocalPlayer
+local guiParent = me:WaitForChild("PlayerGui")
 
-local n = "DacCau AntiAFK"
-local idleNeed = 300
-local clickNeed = 60
-local loopWait = 5
+-- Đổi tên gui name
+local guiName = "Dac Cau Anti-AFK"
 
-local on = false
-local lastIn = tick()
-local lastClick = tick()
+-- mốc mặc định
+local idleLimit = 300   -- 5p
+local tapDelay = 60     -- sau mỗi 60s nếu đang idle thì fake click
+local loopDelay = 2
 
-local function T()
-    return tick()
+local isOn = true
+local hideBody = false
+local lastInputTick = tick()
+local lastTapTick = tick()
+
+local function clampNum(v, minN, maxN)
+    if v < minN then return minN end
+    if v > maxN then return maxN end
+    return v
 end
 
+local function touchInput()
+    lastInputTick = tick()
+end
+
+-- chặn idled 
 pcall(function()
-    for _, c in ipairs(getconnections(lp.Idled)) do
+    local conns = getconnections(me.Idled)
+    for _, x in ipairs(conns) do
         pcall(function()
-            c:Disable()
+            x:Disable()
         end)
     end
 end)
 
-local function touch()
-    lastIn = T()
-end
-
-i.InputBegan:Connect(function()
-    touch()
+UIS.InputBegan:Connect(function()
+    touchInput()
 end)
 
-i.InputChanged:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseMovement then
-        touch()
-    elseif inp.UserInputType == Enum.UserInputType.Gamepad1 then
-        touch()
+UIS.InputChanged:Connect(function(inputObj)
+    local t = inputObj.UserInputType
+    if t == Enum.UserInputType.MouseMovement then
+        touchInput()
+    elseif t == Enum.UserInputType.Gamepad1 then
+        touchInput()
     end
 end)
 
-local function fakeClick()
+local function doFakeTap()
     local cam = workspace.CurrentCamera
-    if not cam then
-        return
-    end
-    v:Button2Down(Vector2.new(0, 0), cam.CFrame)
+    if cam == nil then return end
+    VU:Button2Down(Vector2.new(0, 0), cam.CFrame)
     task.wait(0.1)
-    v:Button2Up(Vector2.new(0, 0), cam.CFrame)
-    lastClick = T()
+    VU:Button2Up(Vector2.new(0, 0), cam.CFrame)
+    lastTapTick = tick()
 end
 
-if g:FindFirstChild(n) then
-    g[n]:Destroy()
+if guiParent:FindFirstChild(guiName) then
+    guiParent[guiName]:Destroy()
 end
 
-local s = Instance.new("ScreenGui")
-s.Name = n
-s.ResetOnSpawn = false
-s.Parent = g
+local root = Instance.new("ScreenGui")
+root.Name = guiName
+root.ResetOnSpawn = false
+root.Parent = guiParent
 
-local u = Instance.new("Frame")
-u.Size = UDim2.new(0, 240, 0, 130)
-u.Position = UDim2.new(0.5, -120, 0.16, 0)
-u.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-u.BorderSizePixel = 0
-u.Active = true
-u.Draggable = true
-u.Parent = s
+local main = Instance.new("Frame")
+main.Parent = root
+main.Size = UDim2.new(0, 300, 0, 190)
+main.Position = UDim2.new(0.5, -150, 0.16, 0)
+main.BackgroundColor3 = Color3.fromRGB(18, 20, 26)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
 
-local uc = Instance.new("UICorner")
-uc.CornerRadius = UDim.new(0, 10)
-uc.Parent = u
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = main
 
-local t = Instance.new("TextLabel")
-t.Size = UDim2.new(1, 0, 0, 30)
-t.BackgroundTransparency = 1
-t.Text = "Anti AFK"
-t.TextColor3 = Color3.fromRGB(120, 255, 170)
-t.Font = Enum.Font.GothamBold
-t.TextSize = 15
-t.Parent = u
+local outStroke = Instance.new("UIStroke")
+outStroke.Parent = main
+outStroke.Color = Color3.fromRGB(70, 85, 120)
+outStroke.Thickness = 1
+outStroke.Transparency = 0.2
 
-local st = Instance.new("TextLabel")
-st.Size = UDim2.new(1, -12, 0, 22)
-st.Position = UDim2.new(0, 6, 0, 30)
-st.BackgroundTransparency = 1
-st.Text = "Idle: 0s | Click: 0s"
-st.TextColor3 = Color3.fromRGB(180, 180, 180)
-st.Font = Enum.Font.Gotham
-st.TextSize = 11
-st.Parent = u
+local top = Instance.new("Frame")
+top.Parent = main
+top.Size = UDim2.new(1, 0, 0, 34)
+top.BackgroundColor3 = Color3.fromRGB(28, 32, 42)
+top.BorderSizePixel = 0
 
-local b = Instance.new("TextButton")
-b.Size = UDim2.new(0.86, 0, 0, 36)
-b.Position = UDim2.new(0.07, 0, 0, 58)
-b.BackgroundColor3 = Color3.fromRGB(170, 35, 35)
-b.Text = "Anti AFK: OFF"
-b.TextColor3 = Color3.fromRGB(255, 255, 255)
-b.Font = Enum.Font.GothamBold
-b.TextSize = 14
-b.Parent = u
+local topCorner = Instance.new("UICorner")
+topCorner.CornerRadius = UDim.new(0, 12)
+topCorner.Parent = top
 
-local bc = Instance.new("UICorner")
-bc.CornerRadius = UDim.new(0, 8)
-bc.Parent = b
+local title = Instance.new("TextLabel")
+title.Parent = top
+title.Size = UDim2.new(1, -70, 1, 0)
+title.Position = UDim2.new(0, 12, 0, 0)
+title.BackgroundTransparency = 1
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.TextColor3 = Color3.fromRGB(175, 240, 200)
+title.Text = "DacCau Anti-AFK"
 
-local d = Instance.new("TextLabel")
-d.Size = UDim2.new(1, -12, 0, 20)
-d.Position = UDim2.new(0, 6, 0, 102)
-d.BackgroundTransparency = 1
-d.Text = "Idle 5 phut, click moi 60s"
-d.TextColor3 = Color3.fromRGB(120, 120, 120)
-d.Font = Enum.Font.Gotham
-d.TextSize = 10
-d.Parent = u
+local miniBtn = Instance.new("TextButton")
+miniBtn.Parent = top
+miniBtn.Size = UDim2.new(0, 24, 0, 24)
+miniBtn.Position = UDim2.new(1, -56, 0.5, -12)
+miniBtn.BackgroundColor3 = Color3.fromRGB(46, 54, 70)
+miniBtn.Text = "-"
+miniBtn.TextColor3 = Color3.fromRGB(220, 220, 220)
+miniBtn.Font = Enum.Font.GothamBold
+miniBtn.TextSize = 15
+Instance.new("UICorner", miniBtn).CornerRadius = UDim.new(0, 6)
 
-local function setOn(x)
-    on = x
-    if x then
-        b.Text = "Anti AFK: ON"
-        b.BackgroundColor3 = Color3.fromRGB(35, 160, 70)
-        lastIn = T()
-        lastClick = T()
+local closeBtn = Instance.new("TextButton")
+closeBtn.Parent = top
+closeBtn.Size = UDim2.new(0, 24, 0, 24)
+closeBtn.Position = UDim2.new(1, -28, 0.5, -12)
+closeBtn.BackgroundColor3 = Color3.fromRGB(90, 45, 45)
+closeBtn.Text = "x"
+closeBtn.TextColor3 = Color3.fromRGB(255, 220, 220)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 12
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+
+local body = Instance.new("Frame")
+body.Parent = main
+body.Size = UDim2.new(1, -16, 1, -46)
+body.Position = UDim2.new(0, 8, 0, 38)
+body.BackgroundTransparency = 1
+
+local statusTxt = Instance.new("TextLabel")
+statusTxt.Parent = body
+statusTxt.Size = UDim2.new(1, 0, 0, 24)
+statusTxt.BackgroundTransparency = 1
+statusTxt.TextXAlignment = Enum.TextXAlignment.Left
+statusTxt.Font = Enum.Font.Gotham
+statusTxt.TextSize = 12
+statusTxt.TextColor3 = Color3.fromRGB(185, 190, 205)
+statusTxt.Text = "Status: ON | Idle: 0s | Last click: 0s"
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Parent = body
+toggleBtn.Size = UDim2.new(0, 130, 0, 32)
+toggleBtn.Position = UDim2.new(0, 0, 0, 30)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 145, 70)
+toggleBtn.Text = "Anti-AFK: ON"
+toggleBtn.TextColor3 = Color3.fromRGB(245, 245, 245)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 12
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
+
+local testBtn = Instance.new("TextButton")
+testBtn.Parent = body
+testBtn.Size = UDim2.new(0, 130, 0, 32)
+testBtn.Position = UDim2.new(1, -130, 0, 30)
+testBtn.BackgroundColor3 = Color3.fromRGB(60, 86, 140)
+testBtn.Text = "Test Click"
+testBtn.TextColor3 = Color3.fromRGB(245, 245, 245)
+testBtn.Font = Enum.Font.GothamBold
+testBtn.TextSize = 12
+Instance.new("UICorner", testBtn).CornerRadius = UDim.new(0, 8)
+
+local idleLine = Instance.new("TextLabel")
+idleLine.Parent = body
+idleLine.Size = UDim2.new(1, 0, 0, 20)
+idleLine.Position = UDim2.new(0, 0, 0, 74)
+idleLine.BackgroundTransparency = 1
+idleLine.TextXAlignment = Enum.TextXAlignment.Left
+idleLine.Font = Enum.Font.Gotham
+idleLine.TextSize = 11
+idleLine.TextColor3 = Color3.fromRGB(170, 175, 190)
+
+local clickLine = idleLine:Clone()
+clickLine.Parent = body
+clickLine.Position = UDim2.new(0, 0, 0, 98)
+
+local minusIdle = Instance.new("TextButton")
+minusIdle.Parent = body
+minusIdle.Size = UDim2.new(0, 28, 0, 24)
+minusIdle.Position = UDim2.new(0, 0, 0, 122)
+minusIdle.BackgroundColor3 = Color3.fromRGB(50, 56, 72)
+minusIdle.Text = "-"
+minusIdle.TextColor3 = Color3.fromRGB(230, 230, 230)
+minusIdle.Font = Enum.Font.GothamBold
+minusIdle.TextSize = 14
+Instance.new("UICorner", minusIdle).CornerRadius = UDim.new(0, 6)
+
+local plusIdle = minusIdle:Clone()
+plusIdle.Parent = body
+plusIdle.Position = UDim2.new(0, 126, 0, 122)
+plusIdle.Text = "+"
+
+local minusClick = minusIdle:Clone()
+minusClick.Parent = body
+minusClick.Position = UDim2.new(1, -154, 0, 122)
+
+local plusClick = minusIdle:Clone()
+plusClick.Parent = body
+plusClick.Position = UDim2.new(1, -28, 0, 122)
+plusClick.Text = "+"
+
+local idleBox = Instance.new("TextLabel")
+idleBox.Parent = body
+idleBox.Size = UDim2.new(0, 92, 0, 24)
+idleBox.Position = UDim2.new(0, 32, 0, 122)
+idleBox.BackgroundColor3 = Color3.fromRGB(35, 40, 54)
+idleBox.TextColor3 = Color3.fromRGB(225, 225, 225)
+idleBox.Font = Enum.Font.GothamSemibold
+idleBox.TextSize = 11
+Instance.new("UICorner", idleBox).CornerRadius = UDim.new(0, 6)
+
+local clickBox = idleBox:Clone()
+clickBox.Parent = body
+clickBox.Position = UDim2.new(1, -122, 0, 122)
+
+local function updateUi()
+    idleLine.Text = "Idle threshold: " .. tostring(idleLimit) .. "s"
+    clickLine.Text = "Click interval: " .. tostring(tapDelay) .. "s"
+    idleBox.Text = tostring(idleLimit) .. "s"
+    clickBox.Text = tostring(tapDelay) .. "s"
+
+    if isOn then
+        toggleBtn.Text = "Anti-AFK: ON"
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 145, 70)
     else
-        b.Text = "Anti AFK: OFF"
-        b.BackgroundColor3 = Color3.fromRGB(170, 35, 35)
+        toggleBtn.Text = "Anti-AFK: OFF"
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(150, 48, 48)
     end
 end
 
-b.MouseButton1Click:Connect(function()
-    setOn(not on)
+toggleBtn.MouseButton1Click:Connect(function()
+    isOn = not isOn
+    if isOn then
+        lastInputTick = tick()
+        lastTapTick = tick()
+    end
+    updateUi()
 end)
+
+testBtn.MouseButton1Click:Connect(function()
+    doFakeTap()
+end)
+
+minusIdle.MouseButton1Click:Connect(function()
+    idleLimit = clampNum(idleLimit - 30, 60, 1200)
+    updateUi()
+end)
+plusIdle.MouseButton1Click:Connect(function()
+    idleLimit = clampNum(idleLimit + 30, 60, 1200)
+    updateUi()
+end)
+minusClick.MouseButton1Click:Connect(function()
+    tapDelay = clampNum(tapDelay - 10, 20, 300)
+    updateUi()
+end)
+plusClick.MouseButton1Click:Connect(function()
+    tapDelay = clampNum(tapDelay + 10, 20, 300)
+    updateUi()
+end)
+
+miniBtn.MouseButton1Click:Connect(function()
+    hideBody = not hideBody
+    body.Visible = not hideBody
+    if hideBody then
+        main.Size = UDim2.new(0, 300, 0, 34)
+        miniBtn.Text = "+"
+    else
+        main.Size = UDim2.new(0, 300, 0, 190)
+        miniBtn.Text = "-"
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    root:Destroy()
+end)
+
+updateUi()
 
 task.spawn(function()
-    while s.Parent do
+    while root.Parent do
         task.wait(1)
-        local idle = math.floor(T() - lastIn)
-        local ago = math.floor(T() - lastClick)
-        st.Text = string.format("Idle: %ds | Click: %ds", idle, ago)
-        if idle >= idleNeed then
-            st.TextColor3 = Color3.fromRGB(255, 210, 80)
+        local idle = math.floor(tick() - lastInputTick)
+        local ago = math.floor(tick() - lastTapTick)
+        statusTxt.Text = string.format("Status: %s | Idle: %ds | Last click: %ds", isOn and "ON" or "OFF", idle, ago)
+        if idle >= idleLimit then
+            statusTxt.TextColor3 = Color3.fromRGB(255, 212, 92)
         else
-            st.TextColor3 = Color3.fromRGB(140, 220, 140)
+            statusTxt.TextColor3 = Color3.fromRGB(185, 190, 205)
         end
     end
 end)
 
 task.spawn(function()
-    while s.Parent do
-        task.wait(loopWait)
-        if not on then
+    while root.Parent do
+        task.wait(loopDelay)
+        if not isOn then
             continue
         end
 
-        local idle = T() - lastIn
-        local ago = T() - lastClick
+        local idle = tick() - lastInputTick
+        local sinceTap = tick() - lastTapTick
 
-        if idle >= idleNeed and ago >= clickNeed then
-            fakeClick()
-        elseif idle < idleNeed and ago >= idleNeed then
-            fakeClick()
+        if idle >= idleLimit and sinceTap >= tapDelay then
+            doFakeTap()
+        elseif idle < idleLimit and sinceTap >= idleLimit then
+            doFakeTap()
         end
     end
 end)
-
-setOn(true)

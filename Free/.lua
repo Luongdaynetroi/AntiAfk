@@ -1,180 +1,170 @@
-local Players = game:GetService("Players")
-local VirtualUser = game:GetService("VirtualUser")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+local p = game:GetService("Players")
+local v = game:GetService("VirtualUser")
+local i = game:GetService("UserInputService")
 
-local plr = Players.LocalPlayer
-local playerGui = plr:WaitForChild("PlayerGui")
+local lp = p.LocalPlayer
+local g = lp:WaitForChild("PlayerGui")
 
--- ==================================================
--- XÓA KẾT NỐI IDLE MẶC ĐỊNH
--- ==================================================
-for _, conn in pairs(getconnections(plr.Idled)) do
-    conn:Disable()
+local n = "DacCau AntiAFK"
+local idleNeed = 300
+local clickNeed = 60
+local loopWait = 5
+
+local on = false
+local lastIn = tick()
+local lastClick = tick()
+
+local function T()
+    return tick()
 end
 
--- ==================================================
--- BIẾN TRẠNG THÁI
--- ==================================================
-local running = false
-local lastInputTime = tick()   -- lần cuối user dùng chuột/bàn phím
-local lastClickTime = tick()   -- lần cuối anti-afk click
-local IDLE_THRESHOLD = 300     -- 5 phút không input thì mới click
-local CLICK_INTERVAL = 60      -- click mỗi 60s khi đang idle
-local SHORT_INTERVAL = 55      -- interval kiểm tra (hơi nhỏ hơn để chắc)
-
--- ==================================================
--- DETECT INPUT CỦA USER (chuột + bàn phím)
--- ==================================================
-UserInputService.InputBegan:Connect(function(input)
-    -- Cập nhật thời gian input bất kỳ
-    lastInputTime = tick()
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    -- Detect cả di chuyển chuột
-    if input.UserInputType == Enum.UserInputType.MouseMovement
-    or input.UserInputType == Enum.UserInputType.Gamepad1 then
-        lastInputTime = tick()
+pcall(function()
+    for _, c in ipairs(getconnections(lp.Idled)) do
+        pcall(function()
+            c:Disable()
+        end)
     end
 end)
 
--- ==================================================
--- LOGIC ANTI-AFK
--- ==================================================
-local function doClick()
-    VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+local function touch()
+    lastIn = T()
+end
+
+i.InputBegan:Connect(function()
+    touch()
+end)
+
+i.InputChanged:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseMovement then
+        touch()
+    elseif inp.UserInputType == Enum.UserInputType.Gamepad1 then
+        touch()
+    end
+end)
+
+local function fakeClick()
+    local cam = workspace.CurrentCamera
+    if not cam then
+        return
+    end
+    v:Button2Down(Vector2.new(0, 0), cam.CFrame)
     task.wait(0.1)
-    VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-    lastClickTime = tick()
+    v:Button2Up(Vector2.new(0, 0), cam.CFrame)
+    lastClick = T()
 end
 
-local function antiAFKLoop()
-    while running do
-        local now = tick()
-        local idleTime = now - lastInputTime      -- bao lâu không input
-        local timeSinceClick = now - lastClickTime -- bao lâu chưa click
+if g:FindFirstChild(n) then
+    g[n]:Destroy()
+end
 
-        if idleTime >= IDLE_THRESHOLD then
-            -- User đang AFK thật sự (5p không dùng gì)
-            if timeSinceClick >= CLICK_INTERVAL then
-                doClick()
-            end
-        else
-            -- User đang dùng game → không click làm phiền
-            -- Nhưng vẫn click 1 lần mỗi 5p để tránh server kick
-            -- dù user đang online
-            if timeSinceClick >= IDLE_THRESHOLD then
-                doClick()
-            end
-        end
+local s = Instance.new("ScreenGui")
+s.Name = n
+s.ResetOnSpawn = false
+s.Parent = g
 
-        task.wait(SHORT_INTERVAL)
+local u = Instance.new("Frame")
+u.Size = UDim2.new(0, 240, 0, 130)
+u.Position = UDim2.new(0.5, -120, 0.16, 0)
+u.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+u.BorderSizePixel = 0
+u.Active = true
+u.Draggable = true
+u.Parent = s
+
+local uc = Instance.new("UICorner")
+uc.CornerRadius = UDim.new(0, 10)
+uc.Parent = u
+
+local t = Instance.new("TextLabel")
+t.Size = UDim2.new(1, 0, 0, 30)
+t.BackgroundTransparency = 1
+t.Text = "Anti AFK"
+t.TextColor3 = Color3.fromRGB(120, 255, 170)
+t.Font = Enum.Font.GothamBold
+t.TextSize = 15
+t.Parent = u
+
+local st = Instance.new("TextLabel")
+st.Size = UDim2.new(1, -12, 0, 22)
+st.Position = UDim2.new(0, 6, 0, 30)
+st.BackgroundTransparency = 1
+st.Text = "Idle: 0s | Click: 0s"
+st.TextColor3 = Color3.fromRGB(180, 180, 180)
+st.Font = Enum.Font.Gotham
+st.TextSize = 11
+st.Parent = u
+
+local b = Instance.new("TextButton")
+b.Size = UDim2.new(0.86, 0, 0, 36)
+b.Position = UDim2.new(0.07, 0, 0, 58)
+b.BackgroundColor3 = Color3.fromRGB(170, 35, 35)
+b.Text = "Anti AFK: OFF"
+b.TextColor3 = Color3.fromRGB(255, 255, 255)
+b.Font = Enum.Font.GothamBold
+b.TextSize = 14
+b.Parent = u
+
+local bc = Instance.new("UICorner")
+bc.CornerRadius = UDim.new(0, 8)
+bc.Parent = b
+
+local d = Instance.new("TextLabel")
+d.Size = UDim2.new(1, -12, 0, 20)
+d.Position = UDim2.new(0, 6, 0, 102)
+d.BackgroundTransparency = 1
+d.Text = "Idle 5 phut, click moi 60s"
+d.TextColor3 = Color3.fromRGB(120, 120, 120)
+d.Font = Enum.Font.Gotham
+d.TextSize = 10
+d.Parent = u
+
+local function setOn(x)
+    on = x
+    if x then
+        b.Text = "Anti AFK: ON"
+        b.BackgroundColor3 = Color3.fromRGB(35, 160, 70)
+        lastIn = T()
+        lastClick = T()
+    else
+        b.Text = "Anti AFK: OFF"
+        b.BackgroundColor3 = Color3.fromRGB(170, 35, 35)
     end
 end
 
--- ==================================================
--- GUI
--- ==================================================
--- Xóa GUI cũ nếu có
-if playerGui:FindFirstChild("LV_AntiAFK_UI") then
-    playerGui.LV_AntiAFK_UI:Destroy()
-end
+b.MouseButton1Click:Connect(function()
+    setOn(not on)
+end)
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LV_AntiAFK_UI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = playerGui
-
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 220, 0, 130)
-Frame.Position = UDim2.new(0.5, -110, 0.15, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Frame.Active = true
-Frame.Draggable = true
-Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
-
-local Title = Instance.new("TextLabel", Frame)
-Title.Size = UDim2.new(1, 0, 0, 32)
-Title.Text = "🌙 Anti-AFK Pro"
-Title.TextColor3 = Color3.fromRGB(0, 255, 128)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 15
-
--- Status label
-local StatusLabel = Instance.new("TextLabel", Frame)
-StatusLabel.Size = UDim2.new(1, -10, 0, 22)
-StatusLabel.Position = UDim2.new(0, 5, 0, 32)
-StatusLabel.Text = "Idle: 0s | Last click: 0s ago"
-StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.TextSize = 11
-
-local ToggleBtn = Instance.new("TextButton", Frame)
-ToggleBtn.Size = UDim2.new(0.85, 0, 0, 36)
-ToggleBtn.Position = UDim2.new(0.075, 0, 0, 60)
-ToggleBtn.Text = "Anti-AFK: OFF"
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 14
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 8)
-
--- Threshold label
-local ThreshLabel = Instance.new("TextLabel", Frame)
-ThreshLabel.Size = UDim2.new(1, -10, 0, 18)
-ThreshLabel.Position = UDim2.new(0, 5, 0, 104)
-ThreshLabel.Text = "Click sau 5p idle | Interval: 60s"
-ThreshLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
-ThreshLabel.BackgroundTransparency = 1
-ThreshLabel.Font = Enum.Font.Gotham
-ThreshLabel.TextSize = 10
-
--- ==================================================
--- UPDATE STATUS REAL-TIME
--- ==================================================
 task.spawn(function()
-    while true do
+    while s.Parent do
         task.wait(1)
-        local idleTime = math.floor(tick() - lastInputTime)
-        local sinceClick = math.floor(tick() - lastClickTime)
-        StatusLabel.Text = string.format(
-            "Idle: %ds | Click: %ds ago",
-            idleTime, sinceClick
-        )
-        -- Đổi màu khi đang idle thật sự
-        if idleTime >= IDLE_THRESHOLD then
-            StatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+        local idle = math.floor(T() - lastIn)
+        local ago = math.floor(T() - lastClick)
+        st.Text = string.format("Idle: %ds | Click: %ds", idle, ago)
+        if idle >= idleNeed then
+            st.TextColor3 = Color3.fromRGB(255, 210, 80)
         else
-            StatusLabel.TextColor3 = Color3.fromRGB(100, 220, 100)
+            st.TextColor3 = Color3.fromRGB(140, 220, 140)
         end
     end
 end)
 
--- ==================================================
--- TOGGLE
--- ==================================================
-local function startAntiAFK()
-    if running then return end
-    running = true
-    lastInputTime = tick()
-    lastClickTime = tick()
-    ToggleBtn.Text = "Anti-AFK: ON"
-    ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
-    task.spawn(antiAFKLoop)
-end
+task.spawn(function()
+    while s.Parent do
+        task.wait(loopWait)
+        if not on then
+            continue
+        end
 
-local function stopAntiAFK()
-    running = false
-    ToggleBtn.Text = "Anti-AFK: OFF"
-    ToggleBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-end
+        local idle = T() - lastIn
+        local ago = T() - lastClick
 
-ToggleBtn.MouseButton1Click:Connect(function()
-    if running then stopAntiAFK() else startAntiAFK() end
+        if idle >= idleNeed and ago >= clickNeed then
+            fakeClick()
+        elseif idle < idleNeed and ago >= idleNeed then
+            fakeClick()
+        end
+    end
 end)
 
--- Tự bật
-startAntiAFK()
+setOn(true)
